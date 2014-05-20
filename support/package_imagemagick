@@ -33,8 +33,9 @@ libpng_local_path=$tempdir/libpng-${LIBPNG_VERSION}.tgz
 
 echo ">>> Downloading libpng sources"
 
-libpng_sources=/Users/sameer/Projects/heroku-buildpack-imagemagick/libpng-${LIBPNG_VERSION}.tar.gz
-# curl ftp://ftp.simplesystems.org/pub/libpng/png/src/libpng-${LIBPNG_VERSION}.tar.gz > $libpng_sources
+libpng_sources=$tempdir/libpng-${LIBPNG_VERSION}.tar.gz
+# curl ftp://ftp.simplesystems.org/pub/libpng/png/src/libpng16/libpng-${LIBPNG_VERSION}.tar.gz > $libpng_sources
+cp /Users/sameer/Projects/heroku-buildpack-imagemagick/libpng-${LIBPNG_VERSION}.tar.gz $libpng_sources
 
 tar -C $tempdir -x -z -f $libpng_sources
 
@@ -46,26 +47,26 @@ vulcan build -v \
   -n libpng\
   -o $libpng_local_path
 
+# -c "cd libpng-${LIBPNG_VERSION} && ./configure --prefix=/app/vendor/libpng && make install" \
+
 echo ">>> Uploading libpng artifact"
 echo "    to ${S3_BUCKET}/${LIBPNG_REMOTE_PATH}"
 echo "    from ${libpng_local_path}"
 
 $basedir/aws/s3 put $S3_BUCKET $LIBPNG_REMOTE_PATH $libpng_local_path
 
+#####  NOTE restart heroku app or it will crash:   heroku restart --app fancy-builderver
+heroku restart --app $VULCAN_HEROKU_APP_NAME
+
 echo ">>> Building imagemagick"
-
-im_sources=/Users/sameer/Projects/heroku-buildpack-imagemagick/ImageMagick-${IMAGE_MAGICK_VERSION}.tar.gz
-# curl http://www.imagemagick.org/download/ImageMagick-${IMAGE_MAGICK_VERSION}.tar.gz > $im_sources
-
-tar -C $tempdir -x -z -f $im_sources
 
 # build and package imagemagick for heroku
 vulcan build -v \
-  -s $tempdir/ImageMagick-${IMAGE_MAGICK_VERSION} \
+  -s "http://www.imagemagick.org/download/ImageMagick-${IMAGE_MAGICK_VERSION}.tar.gz" \
   -n imagemagick \
-  -c "./configure --prefix=/app/vendor/imagemagick && make install" \
+  -c "cd ImageMagick-${IMAGE_MAGICK_VERSION} && ./configure --prefix=/app/vendor/imagemagick && make install" \
   -o $im_local_path \
-  --deps https://s3.amazonaws.com/fieldwire-heroku/libpng-1.6.10.tgz
+  --deps $LIBPNG_REMOTE_PATH
 
 echo ">>> Uploading image magick artifact"
 echo "    to ${S3_BUCKET}/${REMOTE_PATH}"
